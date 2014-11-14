@@ -552,7 +552,6 @@ package com.sclaggett.dnd
 						"xmlHttpRequest.addEventListener('load', " + JS_ON_CHUNKED_UPLOAD_COMPLETE + ", false);" +
 						"xmlHttpRequest.addEventListener('error', " + JS_ON_CHUNKED_UPLOAD_ERROR + ", false);" + 
 						"xmlHttpRequest.open(document.currentUploadFile.method, document.currentUploadFile.url + (document.currentChunkNumber + 1));" +
-						"xmlHttpRequest.setRequestHeader('Content-Length', document.chunkSize);" +
 						"var blob = new Blob([document.currentChunk], {type:'application/x-binary'});" +
 						"xmlHttpRequest.send(blob);" +
 					"}" +
