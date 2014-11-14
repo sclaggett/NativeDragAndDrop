@@ -14,12 +14,14 @@ package com.sclaggett.dnd
 		public static const UPLOAD_FILE:String = "dndUploadFile";
 		public static const UPLOAD_ERROR:String = "dndUploadError";
 		public static const UPLOAD_STOP:String = "dndUploadStop";
+		public static const UPLOAD_CANCELLED:String = "dndUploadCancelled";
 
 		public var fileName:String;
 		public var percentComplete:int;
 		public var serverResponse:String;
 		public var filesProcessed:int;
 		public var filesTotal:int;
+		public var chunksTotal:int;
 		
 		public function DragAndDropEvent(type:String):void
 		{
@@ -49,13 +51,14 @@ package com.sclaggett.dnd
 		}
 
 		public static function UploadFile(fileName:String, serverResponse:String, filesProcessed:int, 
-										  filesTotal:int):DragAndDropEvent
+										  filesTotal:int, chunksTotal:int):DragAndDropEvent
 		{
 			var event:DragAndDropEvent = new DragAndDropEvent(UPLOAD_FILE);
 			event.fileName = fileName;
 			event.serverResponse = serverResponse;
 			event.filesProcessed = filesProcessed;
 			event.filesTotal = filesTotal;
+			event.chunksTotal = chunksTotal;
 			return event;
 		}
 
@@ -64,6 +67,11 @@ package com.sclaggett.dnd
 			var event:DragAndDropEvent = new DragAndDropEvent(UPLOAD_ERROR);
 			event.fileName = fileName;
 			return event;
+		}
+
+		public static function UploadCancelled():DragAndDropEvent
+		{
+			return new DragAndDropEvent(UPLOAD_CANCELLED);
 		}
 	}
 }

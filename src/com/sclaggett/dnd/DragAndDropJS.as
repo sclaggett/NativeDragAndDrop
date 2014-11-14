@@ -85,7 +85,8 @@ package com.sclaggett.dnd
 		public static var INSERT_JS_INITIALIZE_DRAG_AND_DROP:String =
 			"document.insertScript = function () {" +
 				"if (document." + JS_INITIALIZE_DRAG_AND_DROP + " == null) {" +
-					JS_INITIALIZE_DRAG_AND_DROP + " = function (flashPlayerId, transferFiles, transferThreshold) {" +
+					JS_INITIALIZE_DRAG_AND_DROP + " = function (flashPlayerId, transferFiles, transferThreshold, " +
+							"chunkedUploadSize, chunkedErrorLimit) {" +
 						"document.flashPlayer = document.getElementById(flashPlayerId);" +
 						"if (document.flashPlayer == null) {" +
 							"return false;" +
@@ -97,6 +98,8 @@ package com.sclaggett.dnd
 						"document.fileCache = new Object();" + 
 						"document.transferFiles = transferFiles;" + 
 						"document.transferThreshold = transferThreshold;" +
+						"document.chunkedUploadSize = chunkedUploadSize;" +
+						"document.chunkedErrorLimit = chunkedErrorLimit;" +
 						"return true;" +
 					"}" +
 				"}" +
@@ -340,15 +343,15 @@ package com.sclaggett.dnd
 			"}";
 		
 		/**
-		 * Upload file functions
+		 * Form-base file upload functions
 		 */
 		
-		// Event handler that is invoked with information regarding the progress of an upload.
-		public static var JS_ON_UPLOAD_PROGRESS:String = "jsOnUploadProgress";
-		public static var INSERT_JS_ON_UPLOAD_PROGRESS:String =
+		// Event handler that is invoked with information regarding the progress of a form-base upload.
+		public static var JS_ON_FORM_UPLOAD_PROGRESS:String = "jsOnFormUploadProgress";
+		public static var INSERT_JS_ON_FORM_UPLOAD_PROGRESS:String =
 			"document.insertScript = function () {" +
-				"if (document." + JS_ON_UPLOAD_PROGRESS + " == null) {" +
-					JS_ON_UPLOAD_PROGRESS + " = function (file) {" +
+				"if (document." + JS_ON_FORM_UPLOAD_PROGRESS + " == null) {" +
+					JS_ON_FORM_UPLOAD_PROGRESS + " = function (file) {" +
 						"return function(event) {" +
 							"var percentComplete = -1;" +
 							"if (event.lengthComputable) {" +
@@ -361,12 +364,12 @@ package com.sclaggett.dnd
 				"}" +
 			"}";
 		
-		// Event handler that is invoked when a file upload is complete.
-		public static var JS_ON_UPLOAD_COMPLETE:String = "jsOnUploadComplete";
-		public static var INSERT_JS_ON_UPLOAD_COMPLETE:String =
+		// Event handler that is invoked when a form-based file upload is complete.
+		public static var JS_ON_FORM_UPLOAD_COMPLETE:String = "jsOnFormUploadComplete";
+		public static var INSERT_JS_ON_FORM_UPLOAD_COMPLETE:String =
 			"document.insertScript = function () {" +
-				"if (document." + JS_ON_UPLOAD_COMPLETE + " == null) {" +
-					JS_ON_UPLOAD_COMPLETE + " = function (file, filesTotal) {" +
+				"if (document." + JS_ON_FORM_UPLOAD_COMPLETE + " == null) {" +
+					JS_ON_FORM_UPLOAD_COMPLETE + " = function (file, filesTotal) {" +
 						"return function(event) {" +
 							"document.filesUploaded += 1;" +
 							"document.flashPlayer." + DragAndDrop.AS3_ON_UPLOAD_FILE + "(file.name, " + 
@@ -379,12 +382,12 @@ package com.sclaggett.dnd
 				"}" +
 			"}";
 		
-		// Event handler that is invoked when a file upload encounters an error.
-		public static var JS_ON_UPLOAD_ERROR:String = "jsOnUploadError";
-		public static var INSERT_JS_ON_UPLOAD_ERROR:String =
+		// Event handler that is invoked when a form-based file upload encounters an error.
+		public static var JS_ON_FORM_UPLOAD_ERROR:String = "jsOnFormUploadError";
+		public static var INSERT_JS_ON_FORM_UPLOAD_ERROR:String =
 			"document.insertScript = function () {" +
-				"if (document." + JS_ON_UPLOAD_ERROR + " == null) {" +
-					JS_ON_UPLOAD_ERROR + " = function (file) {" +
+				"if (document." + JS_ON_FORM_UPLOAD_ERROR + " == null) {" +
+					JS_ON_FORM_UPLOAD_ERROR + " = function (file) {" +
 						"return function(event) {" +
 							"document.flashPlayer." + DragAndDrop.AS3_ON_UPLOAD_ERROR + "(file.name);" +
 						"};" +
@@ -392,29 +395,195 @@ package com.sclaggett.dnd
 				"}" +
 			"}";
 		
-		// Uploads the specified files to the given URL. Returns true if successful.
-		public static var JS_UPLOAD_FILES:String = "jsUploadFiles";
-		public static var INSERT_JS_UPLOAD_FILES:String =
+		// Uploads the specified files to the given URL using a form-based mechanism. Returns true if successful.
+		public static var JS_FORM_UPLOAD_FILES:String = "jsFormUploadFiles";
+		public static var INSERT_JS_FORM_UPLOAD_FILES:String =
 			"document.insertScript = function () {" +
-				"if (document." + JS_UPLOAD_FILES + " == null) {" +
-					JS_UPLOAD_FILES + " = function (fileList) {" +
+				"if (document." + JS_FORM_UPLOAD_FILES + " == null) {" +
+					JS_FORM_UPLOAD_FILES + " = function (fileList) {" +
 						"document.flashPlayer." + DragAndDrop.AS3_ON_UPLOAD_START + "(fileList.length);" +
 						"document.filesUploaded = 0;" +
 						"for (index = 0; index < fileList.length; index++) {" +
 							"var uploadFile = fileList[index];" +
 							"var file = document.fileCache[uploadFile.name];" +
 							"var uploadRequest = new XMLHttpRequest();" +
-							"uploadRequest.addEventListener('progress', " + JS_ON_UPLOAD_PROGRESS + "(file), " + 
+							"uploadRequest.addEventListener('progress', " + JS_ON_FORM_UPLOAD_PROGRESS + "(file), " + 
 								"false);" +
-							"uploadRequest.addEventListener('load', " + JS_ON_UPLOAD_COMPLETE + "(file, " + 
+							"uploadRequest.addEventListener('load', " + JS_ON_FORM_UPLOAD_COMPLETE + "(file, " + 
 								"fileList.length), false);" +
-							"uploadRequest.addEventListener('error', " + JS_ON_UPLOAD_ERROR + "(file), false);" +
-							"uploadRequest.addEventListener('abort', " + JS_ON_UPLOAD_ERROR + "(file), false);" +
+							"uploadRequest.addEventListener('error', " + JS_ON_FORM_UPLOAD_ERROR + "(file), false);" +
+							"uploadRequest.addEventListener('abort', " + JS_ON_FORM_UPLOAD_ERROR + "(file), false);" +
 							"var formData = new FormData(document.getElementById('uploadForm'));" +
 							"formData.append('filedata', file);" +
 							"uploadRequest.open(uploadFile.method, uploadFile.url);" +
 							"uploadRequest.send(formData);" +
 						"}" +
+						"return true;" +
+					"}" +
+				"}" +
+			"}";
+		
+		/**
+		 * Chunked file upload functions
+		 */
+
+		// Event handler that is invoked when a chunk has been asynchronously uploaded to the server.
+		public static var JS_ON_CHUNKED_UPLOAD_COMPLETE:String = "jsOnChunkedUploadComplete";
+		public static var INSERT_JS_ON_CHUNKED_UPLOAD_COMPLETE:String =
+			"document.insertScript = function () {" +
+				"if (document." + JS_ON_CHUNKED_UPLOAD_COMPLETE + " == null) {" +
+					JS_ON_CHUNKED_UPLOAD_COMPLETE + " = function (event) {" +
+						"if (document.uploadCancelled == true) {" +
+							"return;" +
+						"}" +
+						"if (event.target.status == 200) {" +
+							"document.currentChunkNumber += 1;" +
+							"document.currentFileOffset += document.chunkSize;" +
+							"document.flashPlayer." + DragAndDrop.AS3_ON_UPLOAD_PROGRESS + "(document.currentFile.name, " +
+								"document.currentFileOffset * 100 / document.currentFile.size);" +
+							"if (" + JS_CHUNKED_READ_FILE + "() == false) {" +
+								"document.filesUploaded += 1;" +
+								"document.flashPlayer." + DragAndDrop.AS3_ON_UPLOAD_FILE + "(document.currentUploadFile.name, '', " +
+									"document.filesUploaded, document.uploadFileList.length, document.currentChunkNumber);" +
+								"if (" + JS_CHUNKED_UPLOAD_NEXT_FILE + "() == false) {" +
+									"document.flashPlayer." + DragAndDrop.AS3_ON_UPLOAD_STOP + "();" +
+								"}" +
+							"}" +
+						"} else {" +
+							"document.errorCount += 1;" +
+							"if (document.errorCount < document.chunkedErrorLimit) {" +
+								JS_CHUNKED_UPLOAD_FILE + "();" +
+							"} else {" +
+								"document.flashPlayer." + DragAndDrop.AS3_ON_UPLOAD_ERROR + "(document.currentUploadFile.name);" +
+							"}" +
+						"}" +
+					"}" +
+				"}" +
+			"}";
+			
+		// Event handler that is invoked when an error is encountered while asynchronously uploading a chunk to the server.
+		public static var JS_ON_CHUNKED_UPLOAD_ERROR:String = "jsOnChunkedUploadError";
+		public static var INSERT_JS_ON_CHUNKED_UPLOAD_ERROR:String =
+			"document.insertScript = function () {" +
+				"if (document." + JS_ON_CHUNKED_UPLOAD_ERROR + " == null) {" +
+					JS_ON_CHUNKED_UPLOAD_ERROR + " = function (event) {" +
+						"if (document.uploadCancelled == true) {" +
+							"return;" +
+						"}" +
+						"document.errorCount += 1;" +
+						"if (document.errorCount < document.chunkedErrorLimit) {" +
+							JS_CHUNKED_UPLOAD_FILE + "();" +
+						"} else {" +
+							"document.flashPlayer." + DragAndDrop.AS3_ON_UPLOAD_ERROR + "(document.currentUploadFile.name);" +
+						"}" +
+					"}" +
+				"}" +
+			"}";
+		
+		// Starts asynchronously uploading the next file on the list as a series of chunks.
+		public static var JS_CHUNKED_UPLOAD_NEXT_FILE:String = "jsChunkedUploadNextFile";
+		public static var INSERT_JS_CHUNKED_UPLOAD_NEXT_FILE:String =
+			"document.insertScript = function () {" +
+				"if (document." + JS_CHUNKED_UPLOAD_NEXT_FILE + " == null) {" +
+					JS_CHUNKED_UPLOAD_NEXT_FILE + " = function () {" +
+						"if (document.filesUploaded >= document.uploadFileList.length) {" +
+							"return false;" +
+						"}" +
+						"document.currentUploadFile = document.uploadFileList[document.filesUploaded];" +
+						"document.currentFile = document.fileCache[document.currentUploadFile.name];" +
+						"document.currentFileOffset = 0;" +
+						"document.currentChunkNumber = 0;" +
+						"document.flashPlayer." + DragAndDrop.AS3_ON_UPLOAD_PROGRESS + "(document.currentFile.name, 0);" +
+						"return " + JS_CHUNKED_READ_FILE + "();" +
+					"}" +
+				"}" +
+			"}";
+
+		// Asynchronously reads the next chunk of the file that is currently being uploaded.
+		public static var JS_CHUNKED_READ_FILE:String = "jsChunkedReadFile";
+		public static var INSERT_JS_CHUNKED_READ_FILE:String =
+			"document.insertScript = function () {" +
+				"if (document." + JS_CHUNKED_READ_FILE + " == null) {" +
+					JS_CHUNKED_READ_FILE + " = function () {" +
+						"if (document.currentFileOffset >= document.currentFile.size) {" +
+							"return false;" +
+						"}" +
+						"if ((document.currentFileOffset + document.chunkedUploadSize) <= document.currentFile.size) {" +
+							"document.chunkSize = document.chunkedUploadSize;" +
+						"} else {" +
+							"document.chunkSize = document.currentFile.size - document.currentFileOffset;" +
+						"}" +
+						"document.fileReader.readAsBinaryString(document.currentFile.slice(document.currentFileOffset, document.currentFileOffset + document.chunkSize));" +
+						"return true;" +
+					"}" +
+				"}" +
+			"}";
+		
+		// Event handler that is invoked when an asynchronous file read is complete.
+		public static var JS_ON_CHUNKED_READER_LOAD_END:String = "jsOnChunkedReaderLoadEnd";
+		public static var INSERT_JS_ON_CHUNKED_READER_LOAD_END:String =
+			"document.insertScript = function () {" +
+				"if (document." + JS_ON_CHUNKED_READER_LOAD_END + " == null) {" +
+					JS_ON_CHUNKED_READER_LOAD_END + " = function (event) {" +
+						"if (event.target.readyState == FileReader.DONE) {" +
+							"document.chunkSize = event.loaded;" +
+							"var bytes = new Uint8Array(document.chunkSize);" +
+							"for (var i = 0; i < document.chunkSize; i++) {" +
+								"bytes[i] = event.target.result.charCodeAt(i);" +
+							"}" +
+							"document.currentChunk = bytes;" +
+							"document.errorCount = 0;" +
+							JS_CHUNKED_UPLOAD_FILE + "();" +
+						"}" +
+					"}" +
+				"}" +
+			"}";
+		
+		// Start an asynchronous upload of the current chunk of binary data.
+		public static var JS_CHUNKED_UPLOAD_FILE:String = "jsChunkedUploadFile";
+		public static var INSERT_JS_CHUNKED_UPLOAD_FILE:String =
+			"document.insertScript = function () {" +
+				"if (document." + JS_CHUNKED_UPLOAD_FILE + " == null) {" +
+					JS_CHUNKED_UPLOAD_FILE + " = function () {" +
+						"if (document.uploadCancelled == true) {" +
+							"return;" +
+						"}" +
+						"var xmlHttpRequest = new XMLHttpRequest();" +
+						"xmlHttpRequest.addEventListener('load', " + JS_ON_CHUNKED_UPLOAD_COMPLETE + ", false);" +
+						"xmlHttpRequest.addEventListener('error', " + JS_ON_CHUNKED_UPLOAD_ERROR + ", false);" + 
+						"xmlHttpRequest.open(document.currentUploadFile.method, document.currentUploadFile.url + (document.currentChunkNumber + 1));" +
+						"xmlHttpRequest.setRequestHeader('Content-Length', document.chunkSize);" +
+						"var blob = new Blob([document.currentChunk], {type:'application/x-binary'});" +
+						"xmlHttpRequest.send(blob);" +
+					"}" +
+				"}" +
+			"}";
+		
+		// Uploads the specified files to the given URL using a chunked HTTP mechanism. Returns true if successful.
+		public static var JS_CHUNKED_UPLOAD_FILES:String = "jsChunkedUploadFiles";
+		public static var INSERT_JS_CHUNKED_UPLOAD_FILES:String =
+			"document.insertScript = function () {" +
+				"if (document." + JS_CHUNKED_UPLOAD_FILES + " == null) {" +
+					JS_CHUNKED_UPLOAD_FILES + " = function (fileList) {" +
+						"document.flashPlayer." + DragAndDrop.AS3_ON_UPLOAD_START + "(fileList.length);" +
+						"document.fileReader = new FileReader();" +
+						"document.fileReader.onloadend = " + JS_ON_CHUNKED_READER_LOAD_END + ";" +
+						"document.uploadFileList = fileList;" +
+						"document.filesUploaded = 0;" +
+						"document.uploadCancelled = false;" +
+						"return " + JS_CHUNKED_UPLOAD_NEXT_FILE + "();" +
+					"}" +
+				"}" +
+			"}";
+
+		// Cancels and pending chunked upload
+		public static var JS_CHUNKED_UPLOAD_CANCEL:String = "jsChunkedUploadCancel";
+		public static var INSERT_JS_CHUNKED_UPLOAD_CANCEL:String =
+			"document.insertScript = function () {" +
+				"if (document." + JS_CHUNKED_UPLOAD_CANCEL + " == null) {" +
+					JS_CHUNKED_UPLOAD_CANCEL + " = function () {" +
+						"document.uploadCancelled = true;" +
+						"document.flashPlayer." + DragAndDrop.AS3_ON_UPLOAD_CANCELLED + "();" +
 						"return true;" +
 					"}" +
 				"}" +

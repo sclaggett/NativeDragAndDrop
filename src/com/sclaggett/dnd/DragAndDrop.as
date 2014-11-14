@@ -80,6 +80,26 @@ package com.sclaggett.dnd
 			_enableFileUpload = value;
 		}
 
+		// Size of each chunk that will be sent to the server during a chunked HTTP upload. Default is 256 kilobytes.
+		public static function set chunkedUploadSize(value:int):void
+		{
+			if (_initialized == true)
+			{
+				throw Error("Configuration cannot be changed after control has been initialized");
+			}
+			_chunkedUploadSize = value;
+		}
+
+		// Number of consecutive upload errors that will trigger a complete failure during a chunked HTTP upload. Default is 5.
+		public static function set chunkedErrorLimit(value:int):void
+		{
+			if (_initialized == true)
+			{
+				throw Error("Configuration cannot be changed after control has been initialized");
+			}
+			_chunkedErrorLimit = value;
+		}
+		
 		// Callback that will be invoked continuously when a drag operation is in progress. The function 
 		// should have the following signature:
 		//	function DragOverCallback(clientX:int, clientY:int):String
@@ -136,11 +156,19 @@ package com.sclaggett.dnd
 				ExternalInterface.call(DragAndDropJS.INSERT_JS_ON_DROP);
 				ExternalInterface.call(DragAndDropJS.INSERT_JS_BROWSE_FOR_FILES);
 				ExternalInterface.call(DragAndDropJS.INSERT_JS_ON_FILES_SELECTED);
-				ExternalInterface.call(DragAndDropJS.INSERT_JS_ON_UPLOAD_PROGRESS);
-				ExternalInterface.call(DragAndDropJS.INSERT_JS_ON_UPLOAD_COMPLETE);
-				ExternalInterface.call(DragAndDropJS.INSERT_JS_ON_UPLOAD_ERROR);
-				ExternalInterface.call(DragAndDropJS.INSERT_JS_UPLOAD_FILES);
-				
+				ExternalInterface.call(DragAndDropJS.INSERT_JS_ON_FORM_UPLOAD_PROGRESS);
+				ExternalInterface.call(DragAndDropJS.INSERT_JS_ON_FORM_UPLOAD_COMPLETE);
+				ExternalInterface.call(DragAndDropJS.INSERT_JS_ON_FORM_UPLOAD_ERROR);
+				ExternalInterface.call(DragAndDropJS.INSERT_JS_FORM_UPLOAD_FILES);
+				ExternalInterface.call(DragAndDropJS.INSERT_JS_ON_CHUNKED_UPLOAD_COMPLETE);
+				ExternalInterface.call(DragAndDropJS.INSERT_JS_ON_CHUNKED_UPLOAD_ERROR);
+				ExternalInterface.call(DragAndDropJS.INSERT_JS_CHUNKED_UPLOAD_NEXT_FILE);
+				ExternalInterface.call(DragAndDropJS.INSERT_JS_CHUNKED_READ_FILE);
+				ExternalInterface.call(DragAndDropJS.INSERT_JS_ON_CHUNKED_READER_LOAD_END);
+				ExternalInterface.call(DragAndDropJS.INSERT_JS_CHUNKED_UPLOAD_FILE);
+				ExternalInterface.call(DragAndDropJS.INSERT_JS_CHUNKED_UPLOAD_FILES);
+				ExternalInterface.call(DragAndDropJS.INSERT_JS_CHUNKED_UPLOAD_CANCEL);
+
 				// Add callbacks so the JavaScript can invoke Actionscript code.
 				ExternalInterface.addCallback(AS3_ON_DRAG_ENTER, onDragEnter);
 				ExternalInterface.addCallback(AS3_ON_DRAG_OVER, onDragOver);
@@ -153,6 +181,7 @@ package com.sclaggett.dnd
 				ExternalInterface.addCallback(AS3_ON_UPLOAD_FILE, onUploadFile);
 				ExternalInterface.addCallback(AS3_ON_UPLOAD_STOP, onUploadStop);
 				ExternalInterface.addCallback(AS3_ON_UPLOAD_ERROR, onUploadError);
+				ExternalInterface.addCallback(AS3_ON_UPLOAD_CANCELLED, onUploadCancelled);
 				
 				// Disable drag and drop on the main browser window.
 				var success:Boolean;
@@ -177,7 +206,7 @@ package com.sclaggett.dnd
 				
 				// Initialize drag and drop on the JavaScript side.
 				success = ExternalInterface.call(DragAndDropJS.JS_INITIALIZE_DRAG_AND_DROP, ExternalInterface.objectID,
-					_enableFileTransfer, _fileTransferThreshold) as Boolean;
+					_enableFileTransfer, _fileTransferThreshold, _chunkedUploadSize, _chunkedErrorLimit) as Boolean;
 				if (success != true)
 				{
 					return "Failed to initialize drag and drop";
@@ -225,8 +254,8 @@ package com.sclaggett.dnd
 			return ExternalInterface.call(DragAndDropJS.JS_BROWSE_FOR_FILES) as Boolean;
 		}
 		
-		// Upload the files that the browser has cached to the given URLs.
-		public static function uploadFiles(fileList:Array):Boolean
+		// Upload the files that the browser has cached to the given URLs using a form-based mechanism.
+		public static function formUploadFiles(fileList:Array):Boolean
 		{
 			if (_initialized == false)
 			{
@@ -236,7 +265,35 @@ package com.sclaggett.dnd
 			{
 				throw Error("File upload not enabled");
 			}
-			return ExternalInterface.call(DragAndDropJS.JS_UPLOAD_FILES, fileList) as Boolean;
+			return ExternalInterface.call(DragAndDropJS.JS_FORM_UPLOAD_FILES, fileList) as Boolean;
+		}
+
+		// Upload the files that the browser has cached to the given URLs using a chunked mechanism.
+		public static function chunkedUploadFiles(fileList:Array):Boolean
+		{
+			if (_initialized == false)
+			{
+				throw Error("Control has not been initialized");
+			}
+			if (_enableFileUpload == false)
+			{
+				throw Error("File upload not enabled");
+			}
+			return ExternalInterface.call(DragAndDropJS.JS_CHUNKED_UPLOAD_FILES, fileList) as Boolean;
+		}
+
+		// Upload the files that the browser has cached to the given URLs using a chunked mechanism.
+		public static function chunkedUploadCancel():Boolean
+		{
+			if (_initialized == false)
+			{
+				throw Error("Control has not been initialized");
+			}
+			if (_enableFileUpload == false)
+			{
+				throw Error("File upload not enabled");
+			}
+			return ExternalInterface.call(DragAndDropJS.JS_CHUNKED_UPLOAD_CANCEL) as Boolean;
 		}
 
 		/***
@@ -289,13 +346,16 @@ package com.sclaggett.dnd
 		public static const AS3_ON_UPLOAD_FILE:String = "asOnUploadFile";
 		public static const AS3_ON_UPLOAD_STOP:String = "asOnUploadStop";
 		public static const AS3_ON_UPLOAD_ERROR:String = "asOnUploadError";
+		public static const AS3_ON_UPLOAD_CANCELLED:String = "asOnUploadCancelled";
 
 		// Internal variables.
 		protected static var _disableMainWindow:Boolean = true;
 		protected static var _enableFileTransfer:Boolean = true;
-		protected static var _fileTransferThreshold:int = 40 * 1024 * 1024;
+		protected static var _fileTransferThreshold:uint = 40 * 1024 * 1024;
 		protected static var _enableFileBrowse:Boolean = true;
 		protected static var _enableFileUpload:Boolean = true;
+		protected static var _chunkedUploadSize:uint = 256 * 1024;
+		protected static var _chunkedErrorLimit:uint = 5;
 		protected static var _dragOverCallback:Function;
 		protected static var _dropFileCallback:Function;
 		protected static var _initialized:Boolean = false;
@@ -380,9 +440,9 @@ package com.sclaggett.dnd
 		// the file, any response string returned by the server, the number of files that have been uploaded,
 		// and the total number of files that are being loaded.
 		protected static function onUploadFile(fileName:String, serverResponse:String, filesUploaded:int, 
-											   filesTotal:int):void
+											   filesTotal:int, chunksTotal:int = 0):void
 		{
-			dispatchEvent(DragAndDropEvent.UploadFile(fileName, serverResponse, filesUploaded, filesTotal));
+			dispatchEvent(DragAndDropEvent.UploadFile(fileName, serverResponse, filesUploaded, filesTotal, chunksTotal));
 		}
 
 		// Called when the upload of all files is complete.
@@ -396,6 +456,12 @@ package com.sclaggett.dnd
 		protected static function onUploadError(fileName:String):void
 		{
 			dispatchEvent(DragAndDropEvent.UploadError(fileName));
+		}
+
+		// Called when the upload the files is cancelled.
+		protected static function onUploadCancelled():void
+		{
+			dispatchEvent(DragAndDropEvent.UploadCancelled());
 		}
 	}
 }
