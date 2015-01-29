@@ -527,11 +527,7 @@ package com.sclaggett.dnd
 					JS_ON_CHUNKED_READER_LOAD_END + " = function (event) {" +
 						"if (event.target.readyState == FileReader.DONE) {" +
 							"document.chunkSize = event.loaded;" +
-							"var bytes = new Uint8Array(document.chunkSize);" +
-							"for (var i = 0; i < document.chunkSize; i++) {" +
-								"bytes[i] = event.target.result.charCodeAt(i);" +
-							"}" +
-							"document.currentChunk = bytes;" +
+							"document.currentChunk = event.target.result;" +
 							"document.errorCount = 0;" +
 							JS_CHUNKED_UPLOAD_FILE + "();" +
 						"}" +
