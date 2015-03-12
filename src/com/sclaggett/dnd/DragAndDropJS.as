@@ -112,13 +112,15 @@ package com.sclaggett.dnd
 			"document.insertScript = function () {" +
 				"if (document." + JS_INJECT_BROWSE_INPUT + " == null) {" +
 					JS_INJECT_BROWSE_INPUT + " = function () {" +
-						"var browseDiv = document.createElement('div');" +
-						"browseDiv.innerHTML = \"<input id='fileBrowser' type='file' multiple='true' " + 
-							"style='display: none' />\";" +
-						"var body = document.getElementsByTagName('body')[0];" +
-						"body.appendChild(browseDiv);" +
-						"var fileBrowser = document.getElementById('fileBrowser');" +
-						"fileBrowser.addEventListener('change', " + JS_ON_FILES_SELECTED + ", false);" +
+						"if (document.getElementById('fileBrowser') == null) {" +
+							"var browseDiv = document.createElement('div');" +
+							"browseDiv.innerHTML = \"<input id='fileBrowser' type='file' multiple='true' " + 
+								"style='display: none' />\";" +
+							"var body = document.getElementsByTagName('body')[0];" +
+							"body.appendChild(browseDiv);" +
+							"var fileBrowser = document.getElementById('fileBrowser');" +
+							"fileBrowser.addEventListener('change', " + JS_ON_FILES_SELECTED + ", false);" +
+						"}" +
 						"return true;" +
 					"}" +
 				"}" +
@@ -130,11 +132,13 @@ package com.sclaggett.dnd
 			"document.insertScript = function () {" +
 				"if (document." + JS_INJECT_UPLOAD_FORM + " == null) {" +
 					JS_INJECT_UPLOAD_FORM + " = function () {" +
-						"var formDiv = document.createElement('div');" +
-						"formDiv.innerHTML = \"<form id='uploadForm' enctype='multipart/form-data' " + 
-							"style='display: none;' />\";" +
-						"var body = document.getElementsByTagName('body')[0];" +
-						"body.appendChild(formDiv);" +
+						"if (document.getElementById('uploadForm') == null) {" +
+							"var formDiv = document.createElement('div');" +
+							"formDiv.innerHTML = \"<form id='uploadForm' enctype='multipart/form-data' " + 
+								"style='display: none;' />\";" +
+							"var body = document.getElementsByTagName('body')[0];" +
+							"body.appendChild(formDiv);" +
+						"}" +
 						"return true;" +
 					"}" +
 				"}" +
@@ -437,6 +441,7 @@ package com.sclaggett.dnd
 							"return;" +
 						"}" +
 						"if (event.target.status == 200) {" +
+							"logTimestamp('jsOnChunkedUploadComplete', 'Chunk upload complete: ' + document.currentChunkNumber);" +
 							"document.currentChunkNumber += 1;" +
 							"document.currentFileOffset += document.chunkSize;" +
 							"document.flashPlayer." + DragAndDrop.AS3_ON_UPLOAD_PROGRESS + "(document.currentFile.name, " +
@@ -450,6 +455,7 @@ package com.sclaggett.dnd
 								"}" +
 							"}" +
 						"} else {" +
+							"logTimestamp('jsOnChunkedUploadComplete', 'Chunk upload error: ' + document.currentChunkNumber);" +
 							"document.errorCount += 1;" +
 							"if (document.errorCount < document.chunkedErrorLimit) {" +
 								JS_CHUNKED_UPLOAD_FILE + "();" +
@@ -457,6 +463,16 @@ package com.sclaggett.dnd
 								"document.flashPlayer." + DragAndDrop.AS3_ON_UPLOAD_ERROR + "(document.currentUploadFile.name);" +
 							"}" +
 						"}" +
+					"}" +
+				"}" +
+				"if (document.logTimestamp == null) {" +
+					"logTimestamp = function (functionName, message) {" +
+						"var now = new Date().getTime();" +
+						"if (document.lastTimestamp === undefined || document.lastTimestamp === null) {" +
+							"document.lastTimestamp = now;" +
+						"}" +
+						"console.debug((now - document.lastTimestamp) + ' ' + functionName + ': ' + message);" +
+						"document.lastTimestamp = now;" +
 					"}" +
 				"}" +
 			"}";
@@ -467,6 +483,7 @@ package com.sclaggett.dnd
 			"document.insertScript = function () {" +
 				"if (document." + JS_ON_CHUNKED_UPLOAD_ERROR + " == null) {" +
 					JS_ON_CHUNKED_UPLOAD_ERROR + " = function (event) {" +
+						"logTimestamp('jsOnChunkedUploadError', 'Chunk upload error: ' + document.currentChunkNumber);" +
 						"if (document.uploadCancelled == true) {" +
 							"return;" +
 						"}" +
@@ -490,6 +507,7 @@ package com.sclaggett.dnd
 							"return false;" +
 						"}" +
 						"document.currentUploadFile = document.uploadFileList[document.filesUploaded];" +
+						"logTimestamp('jsChunkedUploadNextFile', 'Starting upload of file: ' + document.currentUploadFile.name);" +
 						"document.currentFile = document.fileCache[document.currentUploadFile.name];" +
 						"document.currentFileOffset = 0;" +
 						"document.currentChunkNumber = 0;" +
@@ -508,6 +526,7 @@ package com.sclaggett.dnd
 						"if (document.currentFileOffset >= document.currentFile.size) {" +
 							"return false;" +
 						"}" +
+						"logTimestamp('jsChunkedReadFile', 'Reading file chunk at offset: ' + document.currentFileOffset);" +
 						"if ((document.currentFileOffset + document.chunkedUploadSize) <= document.currentFile.size) {" +
 							"document.chunkSize = document.chunkedUploadSize;" +
 						"} else {" +
@@ -526,8 +545,17 @@ package com.sclaggett.dnd
 				"if (document." + JS_ON_CHUNKED_READER_LOAD_END + " == null) {" +
 					JS_ON_CHUNKED_READER_LOAD_END + " = function (event) {" +
 						"if (event.target.readyState == FileReader.DONE) {" +
+							"logTimestamp('jsOnChunkedReaderLoadEnd', 'Finished reading file chunk at offset: ' + document.currentFileOffset);" +
 							"document.chunkSize = event.loaded;" +
-							"document.currentChunk = event.target.result;" +
+							"var bytes = new Uint8Array(document.chunkSize);" +
+							"var result = event.target.result;" + 
+							"var size = document.chunkSize;" +
+							"logTimestamp('jsOnChunkedReaderLoadEnd', 'Starting array conversion: ' + size + ' bytes');" +
+							"for (var i = 0; i < size; i++) {" +
+								"bytes[i] = result.charCodeAt(i);" +
+							"}" +
+							"logTimestamp('jsOnChunkedReaderLoadEnd', 'Finished array conversion');" +
+							"document.currentChunk = bytes;" +
 							"document.errorCount = 0;" +
 							JS_CHUNKED_UPLOAD_FILE + "();" +
 						"}" +
@@ -544,12 +572,12 @@ package com.sclaggett.dnd
 						"if (document.uploadCancelled == true) {" +
 							"return;" +
 						"}" +
+						"logTimestamp('jsChunkedUploadFile', 'Starting upload of chunk: ' + document.currentChunkNumber);" +
 						"var xmlHttpRequest = new XMLHttpRequest();" +
 						"xmlHttpRequest.addEventListener('load', " + JS_ON_CHUNKED_UPLOAD_COMPLETE + ", false);" +
 						"xmlHttpRequest.addEventListener('error', " + JS_ON_CHUNKED_UPLOAD_ERROR + ", false);" + 
 						"xmlHttpRequest.open(document.currentUploadFile.method, document.currentUploadFile.url + (document.currentChunkNumber + 1));" +
-						"var blob = new Blob([document.currentChunk], {type:'application/x-binary'});" +
-						"xmlHttpRequest.send(blob);" +
+						"xmlHttpRequest.send(document.currentChunk);" +
 					"}" +
 				"}" +
 			"}";
